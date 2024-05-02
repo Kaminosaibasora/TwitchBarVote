@@ -24,11 +24,41 @@ let drawTriangle = (ctx, x, y, taille) => {
     ctx.stroke();
 }
 
+let drawVignette = (ctx) => {
+    dataImage.forEach(vignette => {
+        let img = new Image();
+        img.src = "./images/" + vignette.src;
+        img.addEventListener("load", () => {
+            let x = 0;
+            let new_width = 80;
+            let new_height = img.height * 80 / img.width;
+            if (new_height > 100) {
+                new_height /= 2;
+                new_width /=2;
+                x += new_width / 2;
+            }
+            let y = calculYTriangleNote(vignette.note) - (new_height/2);
+            // console.log(vignette.src + " : " + new_height + " - "+ y);
+            if (y < 0) {
+                y = 0
+            } else if (y + new_height > canva.height) {
+                y = canva.height - new_height
+            }
+            ctx.drawImage(img, x, y, new_width, new_height);
+        }, false);
+    });
+}
+
 let drawCanva = (ctx, y_triangle) => {
     ctx.clearRect(0, 0, canva.width, canva.height);
-    ctx.fillStyle = 'red';
+    let lineaire = ctx.createLinearGradient(0, 0, 0, canva.height);
+    lineaire.addColorStop(0,'blue');
+    lineaire.addColorStop(0.5, 'green');
+    lineaire.addColorStop(1, 'red');
+    ctx.fillStyle = lineaire;
     ctx.fillRect(100, 0, 50, canva.height)
     drawTriangle(ctx, 175, y_triangle, 50);
+    drawVignette(ctx);
 }
 
 let calculYTriangleNote = (note) => {
@@ -46,6 +76,10 @@ var actived_vote = false;
 var data_vote = {};
 
 button_vote.addEventListener('click', () => {
+    activateVote();
+})
+
+let activateVote = () => {
     if (!actived_vote) {
         button_vote.textContent = "Vote en cours";
         actived_vote = true;
@@ -55,16 +89,12 @@ button_vote.addEventListener('click', () => {
         actived_vote = false;
         console.log(data_vote);
         data_vote = {}
-        indic.textContent = ""
     }
-})
+}
 
 let addVote = (user, message) => {
     let value_vote = parseInt(message)
     if (value_vote && value_vote > 0 && value_vote <= 100) {
-        if (user == "kami_sama_de_l_eternite") {
-            user = value_vote + "vote"
-        }
         data_vote[user] = value_vote
     }
 }
@@ -79,13 +109,22 @@ let calculMoyenne = () => {
 
 // ========================= Gestion CHAT =========================
 
+let channel = document.getElementById("channel").textContent;
+
+ComfyJS.onCommand = ( user, command, message, flags, extra ) => {
+    if( (flags.mod || flags.broadcaster )&& command === "vote" ) {
+        activateVote();
+    }
+  }
+
 ComfyJS.onChat = ( user, message, flags, self, extra ) => {
-    console.log( user + ":", message );
+    // console.log( user + ":", message );
+    // console.log(flags.mod + " - " + flags.broadcaster + " - " + flags.subscriber);
     if (actived_vote) {
         addVote(user, message)
         let y = calculYTriangleNote(calculMoyenne())
         drawCanva(ctx, y)
-        indic.textContent = "moyenne : " + calculMoyenne()
+        indic.textContent = "moyenne : " + parseInt(calculMoyenne())
     }
 }
-ComfyJS.Init( "InconnuDAY" );
+ComfyJS.Init( channel );
